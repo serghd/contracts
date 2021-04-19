@@ -375,6 +375,7 @@ contract EDC is Context, IERC20, Ownable {
   using SafeMath for uint256;
 
   mapping (address => uint256) private _balances;
+  mapping (address => uint256) public _edc_exchange_balances;
 
   mapping (address => mapping (address => uint256)) private _allowances;
 
@@ -392,6 +393,7 @@ contract EDC is Context, IERC20, Ownable {
     _totalSupply = 1000000000*1000000;
     _oneTokenInWei = 1000000000;
     _balances[msg.sender] = _totalSupply;
+    _edc_exchange_balances[msg.sender] = _totalSupply;
 
     emit Transfer(address(0), msg.sender, _totalSupply);
   }
@@ -403,10 +405,10 @@ contract EDC is Context, IERC20, Ownable {
       return address(this).balance;
   }
 
-  // withdraw BNB previously sent to this contract
-  function withdraw(address payable recipient, uint256 amount) external onlyOwner {
-      recipient.transfer(amount);
-  }
+//   // withdraw BNB previously sent to this contract
+//   function withdraw(address payable recipient, uint256 amount) external onlyOwner {
+//       recipient.transfer(amount);
+//   }
   
   function setExchangeRate(uint256 amount_in_wei) external onlyOwner {
       _oneTokenInWei = amount_in_wei;
@@ -415,14 +417,41 @@ contract EDC is Context, IERC20, Ownable {
   function buyTokens() payable external
   {
       uint256 _sentAmount = msg.value;
+      address recipient = msg.sender;
+
       require(_sentAmount > 0, "Sent amount too low");
 
       uint256 amount = _sentAmount;
       amount = amount.div(_oneTokenInWei);
       require(amount > 0, "Purchased amount too low");
 
-      _transfer(owner(), msg.sender, amount);
-      emit Transfer(owner(), msg.sender, amount);
+      _transfer(owner(), recipient, amount);
+
+      _edc_exchange_balances[owner()] = _edc_exchange_balances[owner()].sub(amount);
+      _edc_exchange_balances[recipient] = _edc_exchange_balances[recipient].add(amount);
+
+      emit Transfer(owner(), recipient, amount);
+  }
+  
+  function sellTokens(uint256 edc_amount) external
+  {
+      address payable recipient = msg.sender;
+
+      require(edc_amount > 0, "Sent amount too low");
+      require(_edc_exchange_balances[recipient] >= edc_amount, "Insufficient balance of exchangeable EDC");
+
+      uint256 amount = edc_amount;
+      amount = amount.mul(_oneTokenInWei);
+
+      require(amount > 0, "Purchased amount too low");
+
+      _transfer(recipient, owner(), edc_amount);
+      recipient.transfer(amount);
+
+      _edc_exchange_balances[recipient] = _edc_exchange_balances[recipient].sub(edc_amount);
+      _edc_exchange_balances[owner()] = _edc_exchange_balances[owner()].add(edc_amount);
+
+      emit Transfer(address(this), msg.sender, amount);
   }
 
   /**
