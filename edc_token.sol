@@ -405,11 +405,6 @@ contract EDC is Context, IERC20, Ownable {
       return address(this).balance;
   }
 
-//   // withdraw BNB previously sent to this contract
-//   function withdraw(address payable recipient, uint256 amount) external onlyOwner {
-//       recipient.transfer(amount);
-//   }
-  
   function setExchangeRate(uint256 amount_in_wei) external onlyOwner {
       _oneTokenInWei = amount_in_wei;
   }
